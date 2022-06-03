@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+import jsonlines
 import redis
 import json
 import os
@@ -90,5 +91,12 @@ def retrieve_segment_data(bounding_box, view_name):
             'coordinates': bounding_box,
         }
     }
+    
+    writer_collection = f'{view_name}_clusters'
+    with MongoConnectionManager(database_name, writer_collection) as collection:
+        writer_collection.insert_one(document)
+    
+    with open('grid-data.jsonl', 'a') as writer:
+        writer.write(document)
     
     return document
