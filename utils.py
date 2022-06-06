@@ -92,11 +92,11 @@ def retrieve_segment_data(bounding_box, view_name):
         }
     }
     
-    writer_collection = f'{view_name}_clusters'
-    with MongoConnectionManager(database_name, writer_collection) as collection:
-        writer_collection.insert_one(document)
+    # writer_collection = f'{view_name}_clusters'
+    # with MongoConnectionManager(database_name, writer_collection) as collection:
+    #     writer_collection.insert_one(document)
     
-    with open('grid-data.jsonl', 'a') as writer:
+    with jsonlines.open('grid-data.jsonl', 'a') as writer:
         writer.write(document)
     
     return document
