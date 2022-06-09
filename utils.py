@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from dotenv import load_dotenv
 import jsonlines
 import redis
 import json
@@ -45,7 +46,7 @@ def get_filter_fields(section_name):
     return fields
 
 
-def retrieve_segment_data(bounding_box, view_name):
+def retrieve_segment_data(bounding_box, view_name, fields):
     database_name = 'turf'
     collection_name = f'{view_name}_collection'
     
@@ -56,9 +57,8 @@ def retrieve_segment_data(bounding_box, view_name):
         'LON': {'$gte': min(longitudes), '$lte': max(longitudes)},
     }
     
-    fields = get_filter_fields(view_name)
     facet_query = {}
-    check_query = {}
+    check_query = {'$or': []}
     for field, field_type in fields.items():
         field_name = field.upper()
         if field_type == 'categorical':
@@ -68,7 +68,7 @@ def retrieve_segment_data(bounding_box, view_name):
                 {'$group': {'_id': None, 'values': {'$push': {'k': '$_id', 'v': '$count'}}}},
                 {'$replaceRoot': {'newRoot': {'$arrayToObject': '$values'}}},
             ]
-            check_query[f'properties.{field}'] = {'$ne': {}}
+            check_query['$or'].append({field: {'$ne': []}})
         else:
             facet_query[field] = [
                 {'$match': {field_name: {'$ne': None}}},
@@ -100,12 +100,40 @@ def retrieve_segment_data(bounding_box, view_name):
         }
     }
     
-    writer_collection = f'{view_name}_clusters'
-    with MongoConnectionManager(database_name, writer_collection) as collection:
-        collection.insert_one(document)
+    # writer_collection = f'{view_name}_clusters'
+    # with MongoConnectionManager(database_name, writer_collection) as collection:
+    #     collection.insert_one(document)
     
-    del document['_id']
-    # with jsonlines.open('grid-data.jsonl', 'a') as writer:
-    #     writer.write(document)
+    with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
+        writer.write(document)
     
     return document
+
+
+def prepare_data():
+    f = open('static/geojson/norway-processed-small.geojson', 'r')
+    data = json.load(f)
+    processed = []
+    view_name = "building"
+    fields = get_filter_fields(view_name)
+    count = 0
+    
+    for feature in data['features']:
+        print("Processing", count)
+        bbox = feature['geometry']['coordinates'][0]
+        doc = retrieve_segment_data(bbox, view_name, fields)
+        if 'nodata' in doc:
+            print(f'no data in grid {count}')
+        else:
+            processed.append(doc)
+        count += 1
+    
+    processed_dump = json.dumps(processed)
+    with open(f'static/geojson/processed-{view_name}.json', 'w') as writer:
+        writer.write(processed_dump)
+
+
+if __name__ == '__main__':
+    load_dotenv()
+    redis_instance = get_redis_instance()
+    prepare_data()
