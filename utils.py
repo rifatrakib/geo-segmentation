@@ -36,10 +36,11 @@ def get_filter_fields(section_name):
     
     fields = {}
     for key, value in filters.items():
-        if value['type'] == 'select':
-            fields[key] = 'categorical'
-        elif key not in {'lat', 'lon'}:
-            fields[key] = 'numeric'
+        if value['input']:
+            if value['type'] == 'select':
+                fields[key] = 'categorical'
+            elif key not in {'lat', 'lon'}:
+                fields[key] = 'numeric'
     
     return fields
 
@@ -57,6 +58,7 @@ def retrieve_segment_data(bounding_box, view_name):
     
     fields = get_filter_fields(view_name)
     facet_query = {}
+    check_query = {}
     for field, field_type in fields.items():
         field_name = field.upper()
         if field_type == 'categorical':
@@ -66,6 +68,7 @@ def retrieve_segment_data(bounding_box, view_name):
                 {'$group': {'_id': None, 'values': {'$push': {'k': '$_id', 'v': '$count'}}}},
                 {'$replaceRoot': {'newRoot': {'$arrayToObject': '$values'}}},
             ]
+            check_query[f'properties.{field}'] = {'$ne': {}}
         else:
             facet_query[field] = [
                 {'$match': {field_name: {'$ne': None}}},
@@ -73,9 +76,14 @@ def retrieve_segment_data(bounding_box, view_name):
                 {'$project': {'_id': 0, 'max': 1, 'min': 1}}
             ]
     
-    pipeline = [{'$match': match_query}, {'$facet': facet_query}]
+    pipeline = [{'$match': match_query}, {'$facet': facet_query}, {'$match': check_query}]
     with MongoConnectionManager(database_name, collection_name) as collection:
-        data = list(collection.aggregate(pipeline=pipeline, allowDiskUse=True))[0]
+        data = list(collection.aggregate(pipeline=pipeline, allowDiskUse=True))
+    
+    if data:
+        data = data[0]
+    else:
+        return {'nodata': 'no data in this grid'}
     
     properties = {}
     for field in fields:
@@ -92,11 +100,12 @@ def retrieve_segment_data(bounding_box, view_name):
         }
     }
     
-    # writer_collection = f'{view_name}_clusters'
-    # with MongoConnectionManager(database_name, writer_collection) as collection:
-    #     writer_collection.insert_one(document)
+    writer_collection = f'{view_name}_clusters'
+    with MongoConnectionManager(database_name, writer_collection) as collection:
+        collection.insert_one(document)
     
-    with jsonlines.open('grid-data.jsonl', 'a') as writer:
-        writer.write(document)
+    del document['_id']
+    # with jsonlines.open('grid-data.jsonl', 'a') as writer:
+    #     writer.write(document)
     
     return document
