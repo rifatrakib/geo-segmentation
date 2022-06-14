@@ -111,10 +111,10 @@ def retrieve_segment_data(bounding_box, view_name, fields):
 
 
 def prepare_data():
-    f = open('static/geojson/norway-processed-small.geojson', 'r')
+    f = open('static/geojson/processed-small-grids.geojson', 'r')
     data = json.load(f)
     processed = []
-    view_name = "building"
+    view_name = "property"
     fields = get_filter_fields(view_name)
     count = 0
     
