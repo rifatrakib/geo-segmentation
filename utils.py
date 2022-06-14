@@ -94,10 +94,10 @@ def retrieve_segment_data(bounding_box, view_name, fields):
     
     document = {
         'properties': properties,
-        'geometry': {
+        'geometry': [{
             'type': 'Polygon',
             'coordinates': bounding_box,
-        }
+        }]
     }
     
     # writer_collection = f'{view_name}_clusters'
