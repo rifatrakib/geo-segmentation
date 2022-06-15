@@ -114,7 +114,7 @@ def prepare_data():
     f = open('static/geojson/processed-small-grids.geojson', 'r')
     data = json.load(f)
     processed = []
-    view_name = "property"
+    view_name = "transaction"
     fields = get_filter_fields(view_name)
     count = 0
     
