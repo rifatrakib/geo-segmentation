@@ -96,7 +96,7 @@ def retrieve_segment_data(bounding_box, view_name, fields):
         'properties': properties,
         'geometry': [{
             'type': 'Polygon',
-            'coordinates': bounding_box,
+            'coordinates': [bounding_box],
         }]
     }
     
@@ -104,17 +104,17 @@ def retrieve_segment_data(bounding_box, view_name, fields):
     # with MongoConnectionManager(database_name, writer_collection) as collection:
     #     collection.insert_one(document)
     
-    with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
-        writer.write(document)
+    # with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
+    #     writer.write(document)
     
     return document
 
 
-def prepare_data():
+def prepare_data(view_name):
     f = open('static/geojson/processed-small-grids.geojson', 'r')
     data = json.load(f)
     processed = []
-    view_name = "transaction"
+    # view_name = "transaction"
     fields = get_filter_fields(view_name)
     count = 0
     
@@ -136,4 +136,5 @@ def prepare_data():
 if __name__ == '__main__':
     load_dotenv()
     redis_instance = get_redis_instance()
-    prepare_data()
+    # for view in ['property', 'building', 'transaction']:
+    prepare_data('transaction')
