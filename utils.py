@@ -100,12 +100,12 @@ def retrieve_segment_data(bounding_box, view_name, fields):
         }]
     }
     
-    # writer_collection = f'{view_name}_clusters'
-    # with MongoConnectionManager(database_name, writer_collection) as collection:
-    #     collection.insert_one(document)
+    with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
+        writer.write(document)
     
-    # with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
-    #     writer.write(document)
+    writer_collection = f'{view_name}_clusters'
+    with MongoConnectionManager(database_name, writer_collection) as collection:
+        collection.insert_one(document)
     
     return document
 
@@ -136,5 +136,5 @@ def prepare_data(view_name):
 if __name__ == '__main__':
     load_dotenv()
     redis_instance = get_redis_instance()
-    # for view in ['property', 'building', 'transaction']:
-    prepare_data('transaction')
+    for view in ['property', 'building', 'transaction']:
+        prepare_data(view)
