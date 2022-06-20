@@ -46,7 +46,7 @@ def get_filter_fields(section_name):
     return fields
 
 
-def retrieve_segment_data(bounding_box, view_name, fields):
+def retrieve_object_style_segment_data(bounding_box, view_name, fields):
     database_name = 'turf'
     collection_name = f'{view_name}_collection'
     
@@ -110,18 +110,84 @@ def retrieve_segment_data(bounding_box, view_name, fields):
     return document
 
 
+def retrieve_array_style_segment_data(bounding_box, view_name, fields):
+    database_name = 'turf'
+    collection_name = f'{view_name}_collection'
+    
+    latitudes = [coordinate[1] for coordinate in bounding_box]
+    longitudes = [coordinate[0] for coordinate in bounding_box]
+    match_query = {
+        'LAT': {'$gte': min(latitudes), '$lte': max(latitudes)},
+        'LON': {'$gte': min(longitudes), '$lte': max(longitudes)},
+    }
+    
+    group_query = {'_id': None}
+    check_query = {'$or': []}
+    project_query = {'_id': 0}
+    for field, field_type in fields.items():
+        field_name = field.upper()
+        if field_type == 'categorical':
+            group_query[field] = {
+                '$addToSet': {
+                    '$cond': {
+                        'if': {'$eq': [f'${field_name}', None]},
+                        'then': '$$REMOVE',
+                        'else': f'${field_name}'
+                    }
+                }
+            }
+            check_query['$or'].append({field: {'$ne': [None]}})
+            project_query[field] = 1
+        else:
+            group_query[f'{field}_max'] = {'$max': f'${field_name}'}
+            group_query[f'{field}_min'] = {'$min': f'${field_name}'}
+            project_query[field] = {'max': f'${field}_max', 'min': f'${field}_min'}
+    
+    pipeline = [{'$match': match_query}, {'$group': group_query}, {'$project': project_query}, {'$match': check_query}]
+    with MongoConnectionManager(database_name, collection_name) as collection:
+        data = list(collection.aggregate(pipeline=pipeline, allowDiskUse=True))
+    
+    if data:
+        data = data[0]
+    else:
+        return {'nodata': 'no data in this grid'}
+    
+    properties = {}
+    for field in fields:
+        if data[field]:
+            properties[field] = data[field]
+        else:
+            properties[field] = []
+    
+    document = {
+        'properties': properties,
+        'geometry': [{
+            'type': 'Polygon',
+            'coordinates': [bounding_box],
+        }]
+    }
+    
+    with jsonlines.open(f'{view_name}-grid-array-data.jsonl', 'a') as writer:
+        writer.write(document)
+    
+    # writer_collection = f'{view_name}_clusters'
+    # with MongoConnectionManager(database_name, writer_collection) as collection:
+    #     collection.insert_one(document)
+    
+    return document
+
+
 def prepare_data(view_name):
     f = open('static/geojson/processed-small-grids.geojson', 'r')
     data = json.load(f)
     processed = []
-    # view_name = "transaction"
     fields = get_filter_fields(view_name)
     count = 0
     
     for feature in data['features']:
         print("Processing", count)
         bbox = feature['geometry']['coordinates'][0]
-        doc = retrieve_segment_data(bbox, view_name, fields)
+        doc = retrieve_array_style_segment_data(bbox, view_name, fields)
         if 'nodata' in doc:
             print(f'no data in grid {count}')
         else:

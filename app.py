@@ -15,7 +15,7 @@ def generate_segment_data():
     bounding_box = payload.get('bounding_box', None)
     view_name = payload.get('view_name', None)
     if bounding_box and view_name:
-        response = utils.retrieve_segment_data(bounding_box, view_name)
+        response = utils.retrieve_object_style_segment_data(bounding_box, view_name)
     else:
         response = {'message': 'Must provide bounding_box in the payload'}
     return jsonify(response)
