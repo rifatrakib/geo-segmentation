@@ -100,12 +100,12 @@ def retrieve_object_style_segment_data(bounding_box, view_name, fields):
         }]
     }
     
-    with jsonlines.open(f'{view_name}-grid-data.jsonl', 'a') as writer:
+    with jsonlines.open(f'{view_name}-grid-object-data.jsonl', 'a') as writer:
         writer.write(document)
     
-    writer_collection = f'{view_name}_clusters'
-    with MongoConnectionManager(database_name, writer_collection) as collection:
-        collection.insert_one(document)
+    # writer_collection = f'{view_name}_object_clusters'
+    # with MongoConnectionManager(database_name, writer_collection) as collection:
+    #     collection.insert_one(document)
     
     return document
 
@@ -170,7 +170,7 @@ def retrieve_array_style_segment_data(bounding_box, view_name, fields):
     with jsonlines.open(f'{view_name}-grid-array-data.jsonl', 'a') as writer:
         writer.write(document)
     
-    # writer_collection = f'{view_name}_clusters'
+    # writer_collection = f'{view_name}_array_clusters'
     # with MongoConnectionManager(database_name, writer_collection) as collection:
     #     collection.insert_one(document)
     
@@ -187,7 +187,7 @@ def prepare_data(view_name):
     for feature in data['features']:
         print("Processing", count)
         bbox = feature['geometry']['coordinates'][0]
-        doc = retrieve_array_style_segment_data(bbox, view_name, fields)
+        doc = retrieve_object_style_segment_data(bbox, view_name, fields)
         if 'nodata' in doc:
             print(f'no data in grid {count}')
         else:
@@ -195,7 +195,7 @@ def prepare_data(view_name):
         count += 1
     
     processed_dump = json.dumps(processed)
-    with open(f'static/geojson/processed-{view_name}.json', 'w') as writer:
+    with open(f'static/geojson/processed-objects-{view_name}.json', 'w') as writer:
         writer.write(processed_dump)
 
 
