@@ -177,7 +177,7 @@ def retrieve_array_style_segment_data(bounding_box, view_name, fields):
     return document
 
 
-def prepare_data(view_name):
+def prepare_data(view_name, style):
     f = open('static/geojson/processed-small-grids.geojson', 'r')
     data = json.load(f)
     processed = []
@@ -187,7 +187,11 @@ def prepare_data(view_name):
     for feature in data['features']:
         print("Processing", count)
         bbox = feature['geometry']['coordinates'][0]
-        doc = retrieve_object_style_segment_data(bbox, view_name, fields)
+        if style == 'object':
+            doc = retrieve_object_style_segment_data(bbox, view_name, fields)
+        else:
+            doc = retrieve_array_style_segment_data(bbox, view_name, fields)
+        
         if 'nodata' in doc:
             print(f'no data in grid {count}')
         else:
@@ -195,12 +199,13 @@ def prepare_data(view_name):
         count += 1
     
     processed_dump = json.dumps(processed)
-    with open(f'static/geojson/processed-objects-{view_name}.json', 'w') as writer:
+    with open(f'static/geojson/processed-{style}-{view_name}.json', 'w') as writer:
         writer.write(processed_dump)
 
 
 if __name__ == '__main__':
     load_dotenv()
     redis_instance = get_redis_instance()
+    style = os.environ.get('DATA_FORMAT')
     for view in ['property', 'building', 'transaction']:
-        prepare_data(view)
+        prepare_data(view, style)
