@@ -46,7 +46,7 @@ def get_filter_fields(section_name):
     return fields
 
 
-def retrieve_object_style_segment_data(bounding_box, view_name, fields):
+def retrieve_object_style_segment_data(bounding_box, view_name, fields, from_api=False):
     database_name = 'turf'
     collection_name = f'{view_name}_collection'
     
@@ -103,9 +103,10 @@ def retrieve_object_style_segment_data(bounding_box, view_name, fields):
     with jsonlines.open(f'{view_name}-grid-object-data.jsonl', 'a') as writer:
         writer.write(document)
     
-    # writer_collection = f'{view_name}_object_clusters'
-    # with MongoConnectionManager(database_name, writer_collection) as collection:
-    #     collection.insert_one(document)
+    if from_api:
+        writer_collection = f'{view_name}_object_clusters'
+        with MongoConnectionManager(database_name, writer_collection) as collection:
+            collection.insert_one(document)
     
     return document
 
@@ -201,6 +202,11 @@ def prepare_data(view_name, style):
     processed_dump = json.dumps(processed)
     with open(f'static/geojson/processed-{style}-{view_name}.json', 'w') as writer:
         writer.write(processed_dump)
+    
+    database_name = 'turf'
+    writer_collection = f'{view_name}_object_clusters'
+    with MongoConnectionManager(database_name, writer_collection) as collection:
+        collection.insert_many(processed)
 
 
 if __name__ == '__main__':
